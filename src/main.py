@@ -17,6 +17,54 @@ def calculate_angle(a, b, c):
     )
     return abs(angle)
 
+# Function to recognize gestures
+def recognize_gesture(hand_landmarks):
+    # Get the coordinates of key landmarks for gesture recognition
+    thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
+    index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
+    middle_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
+    ring_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
+    pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
+    
+    # Gesture Detection Logic:
+    thumb_angle = calculate_angle(
+        (hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP].x,
+         hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP].y),
+        (thumb_tip.x, thumb_tip.y),
+        (hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].x,
+         hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].y)
+    )
+    
+    # Recognizing Thumbs Up
+    if thumb_angle < 30:
+        return "Thumbs Up"
+    
+    # Recognizing Fist
+    elif all([index_tip.y < thumb_tip.y, middle_tip.y < thumb_tip.y, ring_tip.y < thumb_tip.y, pinky_tip.y < thumb_tip.y]):
+        return "Fist"
+    
+    # Recognizing Open Hand (All fingers extended)
+    elif (index_tip.y < thumb_tip.y and middle_tip.y < thumb_tip.y and
+          ring_tip.y < thumb_tip.y and pinky_tip.y < thumb_tip.y):
+        return "Open Hand"
+    
+    # Recognizing Peace Sign (Index and middle fingers extended)
+    elif index_tip.y < thumb_tip.y and middle_tip.y < thumb_tip.y and \
+         ring_tip.y > index_tip.y and pinky_tip.y > middle_tip.y:
+        return "Peace Sign"
+    
+    # Recognizing OK Sign (Thumb and index finger touching)
+    elif abs(thumb_tip.x - index_tip.x) < 0.05 and abs(thumb_tip.y - index_tip.y) < 0.05:
+        return "OK Sign"
+    
+    # Recognizing Rock On (Pinky and Index fingers extended)
+    elif index_tip.y < thumb_tip.y and pinky_tip.y < thumb_tip.y and \
+         abs(index_tip.x - pinky_tip.x) < 0.05:
+        return "Rock On"
+    
+    # Default case if no gesture matches
+    return "None"
+
 while True:
     success, frame = cap.read()  # Read a frame from the webcam
     if not success:
@@ -36,30 +84,8 @@ while True:
             # Draw landmarks on the frame
             mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-            # Get the coordinates of key landmarks for gesture recognition
-            thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
-            index_tip = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP]
-            middle_tip = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
-            ring_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
-            pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
-
-            # Calculate angles to recognize gestures
-            # Example: Recognizing a "thumbs up" gesture based on the thumb
-            thumb_angle = calculate_angle(
-                (hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP].x,
-                 hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP].y),
-                (thumb_tip.x, thumb_tip.y),
-                (hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].x,
-                 hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].y)
-            )
-
-            # Gesture Detection Logic
-            if thumb_angle < 30:
-                gesture = "Thumbs Up"
-            elif all([index_tip.y < thumb_tip.y, middle_tip.y < thumb_tip.y, ring_tip.y < thumb_tip.y, pinky_tip.y < thumb_tip.y]):
-                gesture = "Fist"
-            else:
-                gesture = "None"
+            # Recognize gesture
+            gesture = recognize_gesture(hand_landmarks)
 
             # Display the recognized gesture on the frame
             cv2.putText(frame, f"Gesture: {gesture}", (50, 50),
