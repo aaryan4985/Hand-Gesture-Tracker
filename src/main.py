@@ -10,14 +10,11 @@ mp_draw = mp.solutions.drawing_utils  # For drawing hand landmarks
 # Open the webcam (0 is the default camera)
 cap = cv2.VideoCapture(0)
 
-# Function to calculate the angle between three points
-def calculate_angle(a, b, c):
-    angle = math.degrees(
-        math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0])
-    )
-    return abs(angle)
+# Function to calculate the distance between two points
+def calculate_distance(a, b):
+    return math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
 
-# Function to recognize gestures
+# Function to recognize gestures based on distances
 def recognize_gesture(hand_landmarks):
     # Get the coordinates of key landmarks for gesture recognition
     thumb_tip = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP]
@@ -26,39 +23,35 @@ def recognize_gesture(hand_landmarks):
     ring_tip = hand_landmarks.landmark[mp_hands.HandLandmark.RING_FINGER_TIP]
     pinky_tip = hand_landmarks.landmark[mp_hands.HandLandmark.PINKY_TIP]
     
-    # Gesture Detection Logic:
-    thumb_angle = calculate_angle(
-        (hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP].x,
-         hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_IP].y),
-        (thumb_tip.x, thumb_tip.y),
-        (hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].x,
-         hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].y)
-    )
+    # Calculate distances between key landmarks
+    thumb_index_dist = calculate_distance(thumb_tip, index_tip)
+    index_middle_dist = calculate_distance(index_tip, middle_tip)
+    middle_ring_dist = calculate_distance(middle_tip, ring_tip)
+    ring_pinky_dist = calculate_distance(ring_tip, pinky_tip)
     
     # Recognizing Thumbs Up
-    if thumb_angle < 30:
+    if thumb_index_dist > 0.1 and index_middle_dist > 0.1 and ring_pinky_dist < 0.05:
         return "Thumbs Up"
     
     # Recognizing Fist
-    elif all([index_tip.y < thumb_tip.y, middle_tip.y < thumb_tip.y, ring_tip.y < thumb_tip.y, pinky_tip.y < thumb_tip.y]):
+    if thumb_index_dist < 0.05 and index_middle_dist < 0.05 and ring_pinky_dist < 0.05:
         return "Fist"
     
     # Recognizing Open Hand (All fingers extended)
-    elif (index_tip.y < thumb_tip.y and middle_tip.y < thumb_tip.y and
-          ring_tip.y < thumb_tip.y and pinky_tip.y < thumb_tip.y):
+    if thumb_index_dist > 0.1 and index_middle_dist > 0.1 and middle_ring_dist > 0.1 and ring_pinky_dist > 0.1:
         return "Open Hand"
     
     # Recognizing Peace Sign (Index and middle fingers extended)
-    elif index_tip.y < thumb_tip.y and middle_tip.y < thumb_tip.y and \
+    if index_tip.y < thumb_tip.y and middle_tip.y < thumb_tip.y and \
          ring_tip.y > index_tip.y and pinky_tip.y > middle_tip.y:
         return "Peace Sign"
     
     # Recognizing OK Sign (Thumb and index finger touching)
-    elif abs(thumb_tip.x - index_tip.x) < 0.05 and abs(thumb_tip.y - index_tip.y) < 0.05:
+    if thumb_index_dist < 0.05:
         return "OK Sign"
     
     # Recognizing Rock On (Pinky and Index fingers extended)
-    elif index_tip.y < thumb_tip.y and pinky_tip.y < thumb_tip.y and \
+    if index_tip.y < thumb_tip.y and pinky_tip.y < thumb_tip.y and \
          abs(index_tip.x - pinky_tip.x) < 0.05:
         return "Rock On"
     
